@@ -1,4 +1,4 @@
-﻿# BookMatch AI: Personalized Book Recommendation System
+# BookMatch AI: Personalized Book Recommendation System
 
 A beginner-friendly Machine Learning project that recommends books based on content similarity using Python, Pandas, TF-IDF vectorization, and Cosine Similarity. Built with a simple interactive Streamlit user interface.
 
@@ -25,9 +25,12 @@ A beginner-friendly Machine Learning project that recommends books based on cont
 ## 📁 Project Structure
 ```text
 BookMatch-AI-Personalized-Book-Recommendation-System/
-├── data/                  # Dataset directory (raw and cleaned CSVs)
-├── src/                   # Python source code
-│   └── test_setup.py      # Day 1 setup verification script
+├── data/
+│   ├── .gitkeep
+│   └── books.csv          # Goodbooks-10k Extended dataset (10,000 books)
+├── src/
+│   ├── test_setup.py      # Day 1: Setup verification script
+│   └── load_data.py       # Day 2: Dataset loading, validation & diagnostics
 ├── .gitignore             # Ignored files for Git
 ├── requirements.txt       # Project dependencies
 └── README.md              # Project documentation and guide
@@ -37,7 +40,7 @@ BookMatch-AI-Personalized-Book-Recommendation-System/
 
 ## 🚀 15-Day Roadmap
 - [x] **Day 1:** Project setup & environment verification
-- [ ] **Day 2:** Dataset collection & loading
+- [x] **Day 2:** Dataset collection & loading
 - [ ] **Day 3:** Exploratory data analysis (EDA)
 - [ ] **Day 4:** Data cleaning & preprocessing
 - [ ] **Day 5:** Feature engineering & text combination
@@ -71,3 +74,9 @@ BookMatch-AI-Personalized-Book-Recommendation-System/
    ```bash
    python src/test_setup.py
    ```
+
+4. **Run Day 2 dataset loader & inspection:**
+   ```bash
+   python src/load_data.py
+   ```
+
