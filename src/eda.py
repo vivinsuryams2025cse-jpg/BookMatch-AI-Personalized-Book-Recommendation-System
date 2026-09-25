@@ -12,15 +12,13 @@ This module performs comprehensive exploratory data analysis on the book dataset
 7. Automated generation of an EDA markdown report and visual charts (via matplotlib).
 """
 
-import os
 import sys
 import ast
 import re
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from collections import Counter
 import pandas as pd
-import numpy as np
 
 # Safe terminal encoding on Windows consoles
 if hasattr(sys.stdout, "reconfigure"):
@@ -53,7 +51,11 @@ def load_dataset_for_eda(filepath: Path = DEFAULT_DATASET_PATH) -> pd.DataFrame:
             from src.load_data import load_dataset
             return load_dataset(filepath)
         except ImportError:
-            raise FileNotFoundError(f"Dataset not found at {filepath}")
+            try:
+                from load_data import load_dataset
+                return load_dataset(filepath)
+            except ImportError:
+                raise FileNotFoundError(f"Dataset not found at {filepath}")
 
     print(f"[*] Loading dataset from: {filepath.name}...")
     df = pd.read_csv(filepath, low_memory=False)
@@ -179,7 +181,7 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
     q25 = ratings.quantile(0.25)
     q75 = ratings.quantile(0.75)
 
-    print(f"  Descriptive Statistics for Ratings:")
+    print("  Descriptive Statistics for Ratings:")
     print(f"    * Mean Rating   : {mean_rating:.2f} / 5.0")
     print(f"    * Median Rating : {median_rating:.2f} / 5.0")
     print(f"    * Std Dev       : {std_rating:.2f}")
@@ -377,9 +379,10 @@ def analyze_text_features(df: pd.DataFrame) -> Dict[str, Any]:
 
     short_descs = (word_counts < 15).sum() - missing_desc
 
-    print(f"  Description Feature Metrics:")
+    print("  Description Feature Metrics:")
     print(f"    * Missing Descriptions    : {missing_desc:,} ({missing_desc / len(df) * 100:.2f}%)")
     print(f"    * Short Descs (<15 words) : {max(0, short_descs):,} books")
+    print(f"    * Mean Description Chars  : {char_lengths[char_lengths > 0].mean():.0f} characters")
     print(f"    * Mean Description Words  : {word_counts[word_counts > 0].mean():.1f} words")
     print(f"    * Median Words            : {word_counts[word_counts > 0].median():.1f} words")
     print(f"    * Min / Max Words         : {word_counts[word_counts > 0].min()} / {word_counts.max()} words")
@@ -387,7 +390,7 @@ def analyze_text_features(df: pd.DataFrame) -> Dict[str, Any]:
 
     # Title length statistics
     title_word_counts = df[title_col].fillna("").astype(str).apply(lambda s: len(s.split()))
-    print(f"  Title Feature Metrics:")
+    print("  Title Feature Metrics:")
     print(f"    * Mean Title Words        : {title_word_counts.mean():.1f} words")
     print(f"    * Longest Title Words     : {title_word_counts.max()} words")
     print("-" * 72)
@@ -442,7 +445,7 @@ def analyze_publication_and_pages(df: pd.DataFrame) -> Dict[str, Any]:
         valid_years = df[year_col].dropna()
         # Filter obvious data entry anomalies (e.g. negative BC years or future years > 2026)
         clean_years = valid_years[(valid_years >= 1500) & (valid_years <= 2026)]
-        print(f"  Publication Year Metrics:")
+        print("  Publication Year Metrics:")
         print(f"    * Valid Years Available   : {len(clean_years):,} / {len(df):,}")
         print(f"    * Earliest Book (Modern)  : {int(clean_years.min())}")
         print(f"    * Latest Book             : {int(clean_years.max())}")
@@ -455,7 +458,7 @@ def analyze_publication_and_pages(df: pd.DataFrame) -> Dict[str, Any]:
         clean_pages = df[pages_col].dropna()
         # Filter reasonable book length bounds
         valid_pages = clean_pages[(clean_pages >= 10) & (clean_pages <= 2000)]
-        print(f"  Book Length (Pages) Metrics:")
+        print("  Book Length (Pages) Metrics:")
         print(f"    * Mean Page Count         : {valid_pages.mean():.1f} pages")
         print(f"    * Median Page Count       : {valid_pages.median():.1f} pages")
         print(f"    * Min / Max Pages         : {int(valid_pages.min())} / {int(valid_pages.max())} pages")
@@ -513,9 +516,12 @@ def generate_eda_visualizations(
             ax.set_facecolor(BG_COLOR)
             ratings = df["average_rating"].dropna()
 
+            mean_val = float(rating_data.get("mean_rating", ratings.mean()))
+            median_val = float(rating_data.get("median_rating", ratings.median()))
+
             ax.hist(ratings, bins=30, color=PRIMARY_COLOR, edgecolor="white", alpha=0.85)
-            ax.axvline(ratings.mean(), color="#ef4444", linestyle="--", linewidth=2, label=f"Mean: {ratings.mean():.2f}")
-            ax.axvline(ratings.median(), color="#f59e0b", linestyle="-.", linewidth=2, label=f"Median: {ratings.median():.2f}")
+            ax.axvline(mean_val, color="#ef4444", linestyle="--", linewidth=2, label=f"Mean: {mean_val:.2f}")
+            ax.axvline(median_val, color="#f59e0b", linestyle="-.", linewidth=2, label=f"Median: {median_val:.2f}")
 
             ax.set_title("Distribution of Book Average Ratings", fontsize=13, fontweight="bold", pad=12)
             ax.set_xlabel("Average Rating (1.0 to 5.0)", fontsize=10)
