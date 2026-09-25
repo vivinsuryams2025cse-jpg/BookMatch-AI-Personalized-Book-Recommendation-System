@@ -15,6 +15,7 @@ This module performs comprehensive exploratory data analysis on the book dataset
 import sys
 import ast
 import re
+import importlib
 from pathlib import Path
 from typing import List, Dict, Any
 from collections import Counter
@@ -44,18 +45,10 @@ CORE_COLUMNS = [
 
 def load_dataset_for_eda(filepath: Path = DEFAULT_DATASET_PATH) -> pd.DataFrame:
     """
-    Loads dataset from CSV file. If load_data module exists, delegates to it.
+    Loads dataset from CSV file.
     """
     if not filepath.exists():
-        try:
-            from src.load_data import load_dataset
-            return load_dataset(filepath)
-        except ImportError:
-            try:
-                from load_data import load_dataset
-                return load_dataset(filepath)
-            except ImportError:
-                raise FileNotFoundError(f"Dataset not found at {filepath}")
+        raise FileNotFoundError(f"Dataset not found at {filepath}. Please ensure data/books.csv exists.")
 
     print(f"[*] Loading dataset from: {filepath.name}...")
     df = pd.read_csv(filepath, low_memory=False)
@@ -112,12 +105,12 @@ def analyze_dataset_overview(df: pd.DataFrame) -> Dict[str, Any]:
     print("  1. DATASET OVERVIEW & DATA QUALITY AUDIT")
     print("=" * 72)
 
-    total_rows = len(df)
-    total_cols = len(df.columns)
-    memory_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
+    total_rows = int(len(df))
+    total_cols = int(len(df.columns))
+    memory_mb = float(df.memory_usage(deep=True).sum() / (1024 * 1024))
     total_cells = total_rows * total_cols
     total_nulls = int(df.isnull().sum().sum())
-    null_percentage = (total_nulls / total_cells) * 100 if total_cells > 0 else 0.0
+    null_percentage = float((total_nulls / total_cells) * 100) if total_cells > 0 else 0.0
 
     duplicate_ids = int(df["book_id"].duplicated().sum()) if "book_id" in df.columns else 0
     duplicate_titles = int(df["title"].duplicated().sum()) if "title" in df.columns else 0
@@ -202,9 +195,9 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
 
     print("  Rating Distribution Bins:")
     for label, count in bin_counts.items():
-        pct = (count / len(ratings)) * 100
-        bar = render_ascii_bar(count, max_count, bar_length=22)
-        print(f"    {label:<11} : {bar} {count:>5,} books ({pct:>5.1f}%)")
+        pct = (int(count) / len(ratings)) * 100
+        bar = render_ascii_bar(float(count), float(max_count), bar_length=22)
+        print(f"    {label:<11} : {bar} {int(count):>5,} books ({pct:>5.1f}%)")
     print("-" * 72)
 
     # Top 5 Highest Rated Books (with minimum 1,000 ratings to filter out single-vote 5.0s)
@@ -220,7 +213,7 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
         author_parsed = parse_list_column(row.get("authors", ""))
         author_str = ", ".join(author_parsed[:2]) if author_parsed else str(row.get("authors", ""))
         ratings_cnt = f"{int(row['ratings_count']):,}" if "ratings_count" in row and pd.notna(row["ratings_count"]) else "N/A"
-        print(f"    {idx}. {row['title'][:42]:<44} | Rating: {row['average_rating']:.2f} | Votes: {ratings_cnt}")
+        print(f"    {idx}. {str(row['title'])[:42]:<44} | Rating: {float(row['average_rating']):.2f} | Votes: {ratings_cnt}")
         print(f"       by {author_str}")
     print("-" * 72)
 
@@ -229,7 +222,7 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
         print("  Top 5 Most Popular Books (by total review count):")
         top_popular = df.sort_values(by="ratings_count", ascending=False).head(5)
         for idx, (_, row) in enumerate(top_popular.iterrows(), 1):
-            print(f"    {idx}. {row['title'][:42]:<44} | Reviews: {int(row['ratings_count']):,} | Rating: {row['average_rating']:.2f}")
+            print(f"    {idx}. {str(row['title'])[:42]:<44} | Reviews: {int(row['ratings_count']):,} | Rating: {float(row['average_rating']):.2f}")
 
     return {
         "mean_rating": mean_rating,
@@ -285,7 +278,7 @@ def analyze_genres(df: pd.DataFrame) -> Dict[str, Any]:
 
     for rank, (genre, count) in enumerate(top_15_genres, 1):
         pct = (count / len(df)) * 100
-        bar = render_ascii_bar(count, max_genre_count, bar_length=18)
+        bar = render_ascii_bar(float(count), float(max_genre_count), bar_length=18)
 
         # Calculate average rating for books belonging to this genre
         mask = parsed_genres_series.apply(lambda gl: genre in gl)
@@ -337,7 +330,7 @@ def analyze_authors(df: pd.DataFrame) -> Dict[str, Any]:
     max_author_count = top_10_prolific[0][1] if top_10_prolific else 1
     print("  Top 10 Most Prolific Authors in Catalog:")
     for rank, (author, count) in enumerate(top_10_prolific, 1):
-        bar = render_ascii_bar(count, max_author_count, bar_length=18)
+        bar = render_ascii_bar(float(count), float(max_author_count), bar_length=18)
         mask = parsed_authors_series.apply(lambda al: author in al)
         avg_a_rating = float(df.loc[mask, "average_rating"].mean()) if "average_rating" in df.columns else 0.0
         print(f"   {rank:>2}. {author:<26} : {bar} {count:>3} titles | Avg: {avg_a_rating:.2f}★")
@@ -490,9 +483,9 @@ def analyze_publication_and_pages(df: pd.DataFrame) -> Dict[str, Any]:
 
         print("\n  Book Length Categories:")
         for label, count in cat_counts.items():
-            pct = (count / len(valid_pages)) * 100
-            bar = render_ascii_bar(count, max_cat, bar_length=20)
-            print(f"    {label:<20} : {bar} {count:>5,} books ({pct:>5.1f}%)")
+            pct = (int(count) / len(valid_pages)) * 100
+            bar = render_ascii_bar(float(count), float(max_cat), bar_length=20)
+            print(f"    {label:<20} : {bar} {int(count):>5,} books ({pct:>5.1f}%)")
 
     return {}
 
@@ -511,10 +504,10 @@ def generate_eda_visualizations(
     Generates clean, aesthetic visualization charts and saves them to reports/figures/.
     """
     try:
-        import matplotlib
-        matplotlib.use("Agg")  # Non-interactive backend safe for headless/terminal
-        import matplotlib.pyplot as plt
-    except ImportError:
+        mpl = importlib.import_module("matplotlib")
+        mpl.use("Agg")  # Non-interactive backend safe for headless/terminal
+        plt = importlib.import_module("matplotlib.pyplot")
+    except Exception:
         print("\n[!] matplotlib not available. Skipping chart export.")
         return False
 
