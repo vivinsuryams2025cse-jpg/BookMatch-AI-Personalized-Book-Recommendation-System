@@ -116,11 +116,11 @@ def analyze_dataset_overview(df: pd.DataFrame) -> Dict[str, Any]:
     total_cols = len(df.columns)
     memory_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
     total_cells = total_rows * total_cols
-    total_nulls = df.isnull().sum().sum()
-    null_percentage = (total_nulls / total_cells) * 100 if total_cells > 0 else 0
+    total_nulls = int(df.isnull().sum().sum())
+    null_percentage = (total_nulls / total_cells) * 100 if total_cells > 0 else 0.0
 
-    duplicate_ids = df["book_id"].duplicated().sum() if "book_id" in df.columns else 0
-    duplicate_titles = df["title"].duplicated().sum() if "title" in df.columns else 0
+    duplicate_ids = int(df["book_id"].duplicated().sum()) if "book_id" in df.columns else 0
+    duplicate_titles = int(df["title"].duplicated().sum()) if "title" in df.columns else 0
 
     print(f"  * Total Books (Rows)        : {total_rows:,}")
     print(f"  * Total Features (Columns)  : {total_cols}")
@@ -131,12 +131,16 @@ def analyze_dataset_overview(df: pd.DataFrame) -> Dict[str, Any]:
     print(f"  * Memory In RAM             : {memory_mb:.2f} MB")
     print("-" * 72)
 
-    # Missing value details for core and high-null columns
+    # Missing value details for columns with missing data
     print("  Missing Values by Feature (Columns with >0 missing):")
-    missing_series = df.isnull().sum()
-    missing_cols = missing_series[missing_series > 0].sort_values(ascending=False)
+    missing_dict = {
+        str(col): int(df[col].isnull().sum())
+        for col in df.columns
+        if int(df[col].isnull().sum()) > 0
+    }
+    missing_cols = dict(sorted(missing_dict.items(), key=lambda item: item[1], reverse=True))
 
-    if missing_cols.empty:
+    if not missing_cols:
         print("    [+] Excellent! No missing values detected in the dataset.")
     else:
         for col_name, count in missing_cols.items():
@@ -148,11 +152,11 @@ def analyze_dataset_overview(df: pd.DataFrame) -> Dict[str, Any]:
         "total_rows": total_rows,
         "total_cols": total_cols,
         "memory_mb": memory_mb,
-        "total_nulls": int(total_nulls),
+        "total_nulls": total_nulls,
         "null_percentage": null_percentage,
-        "duplicate_ids": int(duplicate_ids),
-        "duplicate_titles": int(duplicate_titles),
-        "missing_by_col": missing_cols.to_dict(),
+        "duplicate_ids": duplicate_ids,
+        "duplicate_titles": duplicate_titles,
+        "missing_by_col": missing_cols,
     }
 
 
@@ -173,13 +177,13 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
 
     ratings = df["average_rating"].dropna()
 
-    mean_rating = ratings.mean()
-    median_rating = ratings.median()
-    std_rating = ratings.std()
-    min_rating = ratings.min()
-    max_rating = ratings.max()
-    q25 = ratings.quantile(0.25)
-    q75 = ratings.quantile(0.75)
+    mean_rating = float(ratings.mean())
+    median_rating = float(ratings.median())
+    std_rating = float(ratings.std())
+    min_rating = float(ratings.min())
+    max_rating = float(ratings.max())
+    q25 = float(ratings.quantile(0.25))
+    q75 = float(ratings.quantile(0.75))
 
     print("  Descriptive Statistics for Ratings:")
     print(f"    * Mean Rating   : {mean_rating:.2f} / 5.0")
@@ -194,7 +198,7 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
     labels = ["< 3.0", "3.0 - 3.5", "3.5 - 4.0", "4.0 - 4.5", "4.5 - 5.0"]
     rating_cut = pd.cut(ratings, bins=bins, labels=labels, right=False)
     bin_counts = rating_cut.value_counts(sort=False)
-    max_count = bin_counts.max()
+    max_count = int(bin_counts.max())
 
     print("  Rating Distribution Bins:")
     for label, count in bin_counts.items():
@@ -206,7 +210,8 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
     # Top 5 Highest Rated Books (with minimum 1,000 ratings to filter out single-vote 5.0s)
     print("  Top 5 Highest-Rated Books (Min 1,000 ratings):")
     if "ratings_count" in df.columns:
-        qualified = df[df["ratings_count"] >= 1000]
+        numeric_ratings_count = pd.to_numeric(df["ratings_count"], errors="coerce").fillna(0)
+        qualified = df[numeric_ratings_count >= 1000]
     else:
         qualified = df
 
@@ -227,11 +232,11 @@ def analyze_ratings(df: pd.DataFrame) -> Dict[str, Any]:
             print(f"    {idx}. {row['title'][:42]:<44} | Reviews: {int(row['ratings_count']):,} | Rating: {row['average_rating']:.2f}")
 
     return {
-        "mean_rating": float(mean_rating),
-        "median_rating": float(median_rating),
-        "std_rating": float(std_rating),
-        "min_rating": float(min_rating),
-        "max_rating": float(max_rating),
+        "mean_rating": mean_rating,
+        "median_rating": median_rating,
+        "std_rating": std_rating,
+        "min_rating": min_rating,
+        "max_rating": max_rating,
         "bin_counts": bin_counts.to_dict(),
     }
 
@@ -252,7 +257,7 @@ def analyze_genres(df: pd.DataFrame) -> Dict[str, Any]:
         return {}
 
     parsed_genres_series = df["genres"].apply(parse_list_column)
-    genre_counts_per_book = parsed_genres_series.apply(len)
+    genre_counts_per_book = [len(g) for g in parsed_genres_series]
 
     all_genres: List[str] = []
     for g_list in parsed_genres_series:
@@ -263,10 +268,14 @@ def analyze_genres(df: pd.DataFrame) -> Dict[str, Any]:
     unique_genres_count = len(genre_freq)
     top_15_genres = genre_freq.most_common(15)
 
+    avg_genres_per_book = float(sum(genre_counts_per_book) / len(genre_counts_per_book)) if genre_counts_per_book else 0.0
+    min_genres = min(genre_counts_per_book) if genre_counts_per_book else 0
+    max_genres = max(genre_counts_per_book) if genre_counts_per_book else 0
+
     print(f"  * Total Genre Tags Assigned : {total_genre_tags:,}")
     print(f"  * Unique Genres in Catalog  : {unique_genres_count:,}")
-    print(f"  * Average Genres per Book   : {genre_counts_per_book.mean():.2f}")
-    print(f"  * Min / Max Genres per Book : {genre_counts_per_book.min()} / {genre_counts_per_book.max()}")
+    print(f"  * Average Genres per Book   : {avg_genres_per_book:.2f}")
+    print(f"  * Min / Max Genres per Book : {min_genres} / {max_genres}")
     print("-" * 72)
 
     # Top 15 Genres Table with ASCII Bar
@@ -280,15 +289,15 @@ def analyze_genres(df: pd.DataFrame) -> Dict[str, Any]:
 
         # Calculate average rating for books belonging to this genre
         mask = parsed_genres_series.apply(lambda gl: genre in gl)
-        avg_g_rating = df.loc[mask, "average_rating"].mean() if "average_rating" in df.columns else 0.0
-        genre_ratings[genre] = float(avg_g_rating)
+        avg_g_rating = float(df.loc[mask, "average_rating"].mean()) if "average_rating" in df.columns else 0.0
+        genre_ratings[genre] = avg_g_rating
 
         print(f"   {rank:>2}. {genre:<20} : {bar} {count:>5,} books ({pct:>5.1f}%) | Avg: {avg_g_rating:.2f}★")
 
     return {
         "total_genre_tags": total_genre_tags,
         "unique_genres_count": unique_genres_count,
-        "avg_genres_per_book": float(genre_counts_per_book.mean()),
+        "avg_genres_per_book": avg_genres_per_book,
         "top_genres": top_15_genres,
         "genre_ratings": genre_ratings,
     }
@@ -330,7 +339,7 @@ def analyze_authors(df: pd.DataFrame) -> Dict[str, Any]:
     for rank, (author, count) in enumerate(top_10_prolific, 1):
         bar = render_ascii_bar(count, max_author_count, bar_length=18)
         mask = parsed_authors_series.apply(lambda al: author in al)
-        avg_a_rating = df.loc[mask, "average_rating"].mean() if "average_rating" in df.columns else 0.0
+        avg_a_rating = float(df.loc[mask, "average_rating"].mean()) if "average_rating" in df.columns else 0.0
         print(f"   {rank:>2}. {author:<26} : {bar} {count:>3} titles | Avg: {avg_a_rating:.2f}★")
     print("-" * 72)
 
@@ -340,7 +349,7 @@ def analyze_authors(df: pd.DataFrame) -> Dict[str, Any]:
     if "average_rating" in df.columns:
         for author in authors_with_5_plus:
             mask = parsed_authors_series.apply(lambda al: author in al)
-            avg_rt = df.loc[mask, "average_rating"].mean()
+            avg_rt = float(df.loc[mask, "average_rating"].mean())
             top_rated_authors.append((author, author_freq[author], avg_rt))
 
         top_rated_authors.sort(key=lambda x: x[2], reverse=True)
@@ -371,28 +380,39 @@ def analyze_text_features(df: pd.DataFrame) -> Dict[str, Any]:
     title_col = "title"
 
     # Description statistics
-    missing_desc = df[desc_col].isnull().sum() if desc_col in df.columns else len(df)
-    clean_descs = df[desc_col].fillna("").astype(str)
+    missing_desc = int(df[desc_col].isnull().sum()) if desc_col in df.columns else len(df)
+    clean_descs = [str(x) if pd.notna(x) else "" for x in df[desc_col]] if desc_col in df.columns else []
 
-    char_lengths = clean_descs.apply(len)
-    word_counts = clean_descs.apply(lambda s: len(s.split()))
+    char_lengths = [len(s) for s in clean_descs]
+    word_counts = [len(s.split()) for s in clean_descs]
 
-    short_descs = (word_counts < 15).sum() - missing_desc
+    valid_words = [w for w in word_counts if w > 0]
+    valid_chars = [c for c in char_lengths if c > 0]
+    short_descs = sum(1 for w in word_counts if 0 < w < 15)
+
+    mean_desc_words = float(sum(valid_words) / len(valid_words)) if valid_words else 0.0
+    median_desc_words = float(pd.Series(valid_words).median()) if valid_words else 0.0
+    min_words = min(valid_words) if valid_words else 0
+    max_words = max(valid_words) if valid_words else 0
+    mean_desc_chars = float(sum(valid_chars) / len(valid_chars)) if valid_chars else 0.0
 
     print("  Description Feature Metrics:")
     print(f"    * Missing Descriptions    : {missing_desc:,} ({missing_desc / len(df) * 100:.2f}%)")
-    print(f"    * Short Descs (<15 words) : {max(0, short_descs):,} books")
-    print(f"    * Mean Description Chars  : {char_lengths[char_lengths > 0].mean():.0f} characters")
-    print(f"    * Mean Description Words  : {word_counts[word_counts > 0].mean():.1f} words")
-    print(f"    * Median Words            : {word_counts[word_counts > 0].median():.1f} words")
-    print(f"    * Min / Max Words         : {word_counts[word_counts > 0].min()} / {word_counts.max()} words")
+    print(f"    * Short Descs (<15 words) : {short_descs:,} books")
+    print(f"    * Mean Description Chars  : {mean_desc_chars:.0f} characters")
+    print(f"    * Mean Description Words  : {mean_desc_words:.1f} words")
+    print(f"    * Median Words            : {median_desc_words:.1f} words")
+    print(f"    * Min / Max Words         : {min_words} / {max_words} words")
     print("-" * 72)
 
     # Title length statistics
-    title_word_counts = df[title_col].fillna("").astype(str).apply(lambda s: len(s.split()))
+    title_word_counts = [len(str(x).split()) for x in df[title_col].dropna()] if title_col in df.columns else []
+    mean_title_words = float(sum(title_word_counts) / len(title_word_counts)) if title_word_counts else 0.0
+    max_title_words = max(title_word_counts) if title_word_counts else 0
+
     print("  Title Feature Metrics:")
-    print(f"    * Mean Title Words        : {title_word_counts.mean():.1f} words")
-    print(f"    * Longest Title Words     : {title_word_counts.max()} words")
+    print(f"    * Mean Title Words        : {mean_title_words:.1f} words")
+    print(f"    * Longest Title Words     : {max_title_words} words")
     print("-" * 72)
 
     # Word Frequency / Keyword Preview (excluding standard English stop words)
@@ -407,7 +427,7 @@ def analyze_text_features(df: pd.DataFrame) -> Dict[str, Any]:
     }
 
     # Sample keywords from descriptions
-    sample_text = " ".join(clean_descs.head(1000)).lower()
+    sample_text = " ".join(clean_descs[:1000]).lower()
     tokens = re.findall(r"\b[a-z]{3,}\b", sample_text)
     meaningful_tokens = [w for w in tokens if w not in stop_words]
     top_keywords = Counter(meaningful_tokens).most_common(10)
@@ -421,9 +441,9 @@ def analyze_text_features(df: pd.DataFrame) -> Dict[str, Any]:
     print("      rich semantic context for the TF-IDF matrix in Day 5.")
 
     return {
-        "missing_descriptions": int(missing_desc),
-        "short_descriptions": int(max(0, short_descs)),
-        "mean_desc_words": float(word_counts[word_counts > 0].mean()),
+        "missing_descriptions": missing_desc,
+        "short_descriptions": short_descs,
+        "mean_desc_words": mean_desc_words,
         "top_keywords": top_keywords,
     }
 
@@ -442,9 +462,8 @@ def analyze_publication_and_pages(df: pd.DataFrame) -> Dict[str, Any]:
     # 1. Publication Year
     year_col = "original_publication_year"
     if year_col in df.columns:
-        valid_years = df[year_col].dropna()
-        # Filter obvious data entry anomalies (e.g. negative BC years or future years > 2026)
-        clean_years = valid_years[(valid_years >= 1500) & (valid_years <= 2026)]
+        years_numeric = pd.to_numeric(df[year_col], errors="coerce").dropna()
+        clean_years = years_numeric[(years_numeric >= 1500) & (years_numeric <= 2026)]
         print("  Publication Year Metrics:")
         print(f"    * Valid Years Available   : {len(clean_years):,} / {len(df):,}")
         print(f"    * Earliest Book (Modern)  : {int(clean_years.min())}")
@@ -455,12 +474,11 @@ def analyze_publication_and_pages(df: pd.DataFrame) -> Dict[str, Any]:
     # 2. Pages
     pages_col = "pages"
     if pages_col in df.columns:
-        clean_pages = df[pages_col].dropna()
-        # Filter reasonable book length bounds
-        valid_pages = clean_pages[(clean_pages >= 10) & (clean_pages <= 2000)]
+        pages_numeric = pd.to_numeric(df[pages_col], errors="coerce").dropna()
+        valid_pages = pages_numeric[(pages_numeric >= 10) & (pages_numeric <= 2000)]
         print("  Book Length (Pages) Metrics:")
-        print(f"    * Mean Page Count         : {valid_pages.mean():.1f} pages")
-        print(f"    * Median Page Count       : {valid_pages.median():.1f} pages")
+        print(f"    * Mean Page Count         : {float(valid_pages.mean()):.1f} pages")
+        print(f"    * Median Page Count       : {float(valid_pages.median()):.1f} pages")
         print(f"    * Min / Max Pages         : {int(valid_pages.min())} / {int(valid_pages.max())} pages")
 
         # Categorize length
@@ -468,7 +486,7 @@ def analyze_publication_and_pages(df: pd.DataFrame) -> Dict[str, Any]:
         page_labels = ["Short (<200 p.)", "Medium (200-400 p.)", "Long (400-600 p.)", "Epic (>600 p.)"]
         categorized = pd.cut(valid_pages, bins=page_bins, labels=page_labels)
         cat_counts = categorized.value_counts(sort=False)
-        max_cat = cat_counts.max()
+        max_cat = int(cat_counts.max())
 
         print("\n  Book Length Categories:")
         for label, count in cat_counts.items():
@@ -587,11 +605,12 @@ def generate_eda_visualizations(
         if "pages" in df.columns:
             fig, ax = plt.subplots(figsize=(8, 4.5), facecolor=BG_COLOR)
             ax.set_facecolor(BG_COLOR)
-            valid_pages = df["pages"].dropna()
-            valid_pages = valid_pages[(valid_pages >= 10) & (valid_pages <= 1200)]
+            pages_numeric = pd.to_numeric(df["pages"], errors="coerce").dropna()
+            valid_pages = pages_numeric[(pages_numeric >= 10) & (pages_numeric <= 1200)]
 
             ax.hist(valid_pages, bins=35, color="#f59e0b", edgecolor="white", alpha=0.85)
-            ax.axvline(valid_pages.median(), color="#1e293b", linestyle="--", linewidth=2, label=f"Median: {valid_pages.median():.0f} pages")
+            median_pages = float(valid_pages.median()) if not valid_pages.empty else 0.0
+            ax.axvline(median_pages, color="#1e293b", linestyle="--", linewidth=2, label=f"Median: {median_pages:.0f} pages")
 
             ax.set_title("Distribution of Book Page Lengths (< 1,200 pages)", fontsize=13, fontweight="bold", pad=12)
             ax.set_xlabel("Number of Pages", fontsize=10)
