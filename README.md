@@ -28,21 +28,24 @@ A beginner-friendly Machine Learning project that recommends books based on cont
 BookMatch-AI-Personalized-Book-Recommendation-System/
 ├── data/
 │   ├── .gitkeep
-│   └── books.csv          # Goodbooks-10k Extended dataset (10,000 books)
+│   ├── books.csv              # Goodbooks-10k Extended dataset (10,000 books)
+│   └── books_cleaned.csv      # Day 4: Cleaned & preprocessed dataset (9,964 books)
 ├── reports/
-│   ├── EDA_REPORT.md      # Day 3: Comprehensive EDA summary report
-│   └── figures/           # Day 3: EDA distribution and ranking plots
+│   ├── EDA_REPORT.md          # Day 3: Comprehensive EDA summary report
+│   ├── CLEANING_REPORT.md     # Day 4: Data cleaning & preprocessing report
+│   └── figures/               # Day 3: EDA distribution and ranking plots
 │       ├── rating_distribution.png
 │       ├── top_genres.png
 │       ├── top_authors.png
 │       └── book_length_distribution.png
 ├── src/
-│   ├── test_setup.py      # Day 1: Setup verification script
-│   ├── load_data.py       # Day 2: Dataset loading, validation & diagnostics
-│   └── eda.py             # Day 3: Exploratory data analysis & metrics
-├── .gitignore             # Ignored files for Git
-├── requirements.txt       # Project dependencies
-└── README.md              # Project documentation and guide
+│   ├── test_setup.py          # Day 1: Setup verification script
+│   ├── load_data.py           # Day 2: Dataset loading, validation & diagnostics
+│   ├── eda.py                 # Day 3: Exploratory data analysis & metrics
+│   └── clean_data.py          # Day 4: Data cleaning & preprocessing pipeline
+├── .gitignore                 # Ignored files for Git
+├── requirements.txt           # Project dependencies
+└── README.md                  # Project documentation and guide
 ```
 
 ---
@@ -51,7 +54,7 @@ BookMatch-AI-Personalized-Book-Recommendation-System/
 - [x] **Day 1:** Project setup & environment verification
 - [x] **Day 2:** Dataset collection & loading
 - [x] **Day 3:** Exploratory data analysis (EDA)
-- [ ] **Day 4:** Data cleaning & preprocessing
+- [x] **Day 4:** Data cleaning & preprocessing
 - [ ] **Day 5:** Feature engineering & text combination
 - [ ] **Day 6:** Text vectorization with TF-IDF
 - [ ] **Day 7:** Cosine similarity calculation
@@ -73,6 +76,19 @@ BookMatch-AI-Personalized-Book-Recommendation-System/
 - **Most Prolific Authors:** Stephen King (90 books), James Patterson (66 books), Nora Roberts (51 books).
 - **Text Features for Recommender:** Mean book description length is 150 words. Exactly **57 books (0.57%)** have missing descriptions, which will be imputed during Day 4 cleaning.
 - Detailed metrics and generated figures can be reviewed in [reports/EDA_REPORT.md](reports/EDA_REPORT.md).
+
+---
+
+## 🧹 Day 4 Data Cleaning Key Results
+- **Dropped 2 redundant columns** (`Unnamed: 0`, `index`) — CSV indexing artifacts.
+- **Removed 36 duplicate titles** — kept the most popular edition by ratings_count.
+- **Cleaned all text fields** — removed HTML tags, decoded entities, stripped non-printable characters.
+- **Imputed 57 missing descriptions** — generated synthetic fallback text from `title` + `genres`.
+- **Normalized 39 genre tags** — lowercased, hyphen-separated, deduplicated per book.
+- **Standardized 6,465 author names** — removed parenthetical suffixes and encoding artifacts.
+- **Imputed missing numerics** — filled `pages` (73 missing → median 336) and `original_publication_year` (21 missing → median 2004).
+- **Final cleaned dataset:** 9,964 books, 28 features, **99.33% data completeness**.
+- Detailed report: [reports/CLEANING_REPORT.md](reports/CLEANING_REPORT.md).
 
 ---
 
@@ -102,4 +118,9 @@ BookMatch-AI-Personalized-Book-Recommendation-System/
 5. **Run Day 3 exploratory data analysis (EDA):**
    ```bash
    python src/eda.py
+   ```
+
+6. **Run Day 4 data cleaning & preprocessing:**
+   ```bash
+   python src/clean_data.py
    ```
